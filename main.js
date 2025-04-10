@@ -1,9 +1,10 @@
 import './style.css';
 
-import { collection, doc, addDoc, setDoc, getDoc, onSnapshot, updateDoc } from "firebase/firestore";
+import { collection, doc, addDoc, setDoc, getDoc, onSnapshot, updateDoc, deleteDoc } from "firebase/firestore";
 import firestore from './firebase.js';
 
-
+// TODO: Connection Setup
+// STUN server configuration for WebRTC
 const servers = {
     iceServers: [
         {
@@ -14,11 +15,20 @@ const servers = {
 };
 
 // Global State
-let pc = new RTCPeerConnection(servers);
+/** 
+ * @type {RTCPeerConnection} - The RTCPeerConnection object represents a connection between the local computer and a remote peer.
+*/
+let peerConnection = new RTCPeerConnection(servers);
+/**
+ * @type {MediaStream | null} localStream - The local media stream (e.g., the user's webcam and microphone).
+*/
 let localStream = null;
+/**
+ * @type {MediaStream | null} remoteStream - The remote media stream (e.g., the other user's webcam and microphone).
+ */ 
 let remoteStream = null;
 
-
+// DOM Elements
 const webcamButton = document.getElementById('webcamButton');
 const webcamVideo = document.getElementById('webcamVideo');
 const callButton = document.getElementById('callButton');
@@ -28,61 +38,74 @@ const remoteVideo = document.getElementById('remoteVideo');
 const hangupButton = document.getElementById('hangupButton');
 
 
-
+// TODO: Media Capture
 // 1. Setup media sources
-
 webcamButton.onclick = async () => {
+    console.log("Setting up media sources...");
+    // Request access to the user's webcam and microphone
+    console.log("Requesting access to your webcam and microphone...");
     localStream = await navigator.mediaDevices.getUserMedia({
         video: true,
         audio: true,
     });
     remoteStream = new MediaStream();
-
-    // Push tracks from local stream to peer connection
+    console.log("Access granted! Preparing your local video and audio streams...");
+    // TODO: Peer-to-Peer - Local Tracks
+    // Add local tracks (video/audio) to the peer connection
     localStream.getTracks().forEach((track) => {
-        pc.addTrack(track, localStream);
+      console.log(`Adding local "${track.kind}" track to the connection:`, track);
+      peerConnection.addTrack(track, localStream);
     });
 
-    // Pull tracks from remote stream, add to video stream
-    pc.ontrack = event => {
+    // TODO: Peer-to-Peer - Remote Tracks
+    // Handle incoming remote tracks and add them to the remote stream
+    peerConnection.ontrack = event => {
+      console.log("Receiving video/audio from the other person...");
       event.streams[0].getTracks().forEach(track => {
+        console.log(`Adding remote "${track.kind}" track to the remote stream:`, track);
         remoteStream.addTrack(track);
       });
     };
 
+    // Display local and remote streams in the video elements
     webcamVideo.srcObject = localStream;
     remoteVideo.srcObject = remoteStream;
 
+    console.log("Your video and audio are ready! You can now create or join a call.");
+    // Enable call and answer buttons and disable webcam button
     callButton.disabled = false;
     answerButton.disabled = false;
-    webcamButton.disabled = true; 
+    webcamButton.disabled = true;
+
+    console.log("Media sources set up successfully.");
 };
 
 
+// TODO: Signaling - Caller
 // 2. Create an offer
 callButton.onclick = async () => {
+    console.log("Creating an offer / a new call...");
     // Reference Firestore collection
     const callDoc = doc(collection(firestore, 'calls'));
     const offerCandidates = collection(callDoc, 'offerCandidates');
     const answerCandidates = collection(callDoc, 'answerCandidates');
 
     callInput.value = callDoc.id;
-    console.log("callDoc.id:");
-    console.log(callDoc.id);
+    console.log(`Call created! Share this call ID with the other person: ${callDoc.id}`);
 
 
-    // Get candidate for caller, save to db
-    pc.onicecandidate = async (event) => {
+    // Collect ICE candidates for the caller and save them to Firestore
+    peerConnection.onicecandidate = async (event) => {
       if (event.candidate) {
+          console.log("Saving ICE candidate...");
           await addDoc(offerCandidates, event.candidate.toJSON());
       }
     };
 
-    // Create offer
-    const offerDescription = await pc.createOffer();
-    await pc.setLocalDescription(offerDescription);
-    console.log("offerDescription:");
-    console.log(offerDescription);
+    // Create an SDP offer and set it as the local description
+    const offerDescription = await peerConnection.createOffer();
+    await peerConnection.setLocalDescription(offerDescription);
+    console.log("Sending your connection details (SDP offer) to the other person...");
 
     const offer = {
         sdp: offerDescription.sdp,
@@ -90,26 +113,43 @@ callButton.onclick = async () => {
     };
 
     await setDoc(callDoc, { offer });
+    console.log("Connection details (SDP offer) sent to Firestore:", offer);
 
 
     // Listen for remote answer
     onSnapshot(callDoc, (snapshot) => {
         // The on snapshot method will fire a callback anytime the document in the database changes
         const data = snapshot.data();
-        // If our peer connection doesn't have a current remote description and the data has an answer 
-        // then we'll go ahead and set an answer description on our peer connection here locally
-        if (!pc.currentRemoteDescription && data?.answer) {
+        if (!peerConnection.currentRemoteDescription && data?.answer) {
+          console.log("Received SDP answer. The other person has accepted your call! Setting up the connection...");
           const answerDescription = new RTCSessionDescription(data.answer);
-          pc.setRemoteDescription(answerDescription);
+
+          // Group the SDP answer details (collapsed by default)
+          console.groupCollapsed("SDP Answer (Receiver)");
+          console.log(data.answer.sdp);
+          console.groupEnd();
+
+          peerConnection.setRemoteDescription(answerDescription);
+
+          // Final summary log for the caller
+          console.log("Connection successful! The browsers are now communicating using the following details:");
+          console.groupCollapsed("Connection Details");
+          console.log("SDP Offer (Caller):", offerDescription.sdp);
+          console.log("SDP Answer (Receiver):", data.answer.sdp);
+          console.log("ICE Candidates are being exchanged to establish the best communication path.");
+          console.groupEnd();
+          console.log("Enjoy your call!");
+          
       }
     });
 
-    // When answered, add candidate to peer connection
+    // Listen for ICE candidates from the answerer and add them to the peer connection
     onSnapshot(answerCandidates, (snapshot) => {
       snapshot.docChanges().forEach((change) => {
         if (change.type === 'added') {
           const candidate = new RTCIceCandidate(change.doc.data());
-          pc.addIceCandidate(candidate);
+          console.log("Adding ICE candidate from the other person.");
+          peerConnection.addIceCandidate(candidate);
         }
       });
     });
@@ -118,79 +158,104 @@ callButton.onclick = async () => {
     callButton.disabled = true;
     answerButton.disabled = true;
     webcamButton.disabled = true;
+
+    console.log("Offer created and sent successfully.");
+    console.log("Your call is ready! Waiting for the other person to join...");
 };
 
 
+// TODO: Signaling - Receiver
 // 3. Answer the call with the unique ID
 answerButton.onclick = async () => {
+    console.log("Answering/joining the call...");
     // Reference Firestore collection
     const callId = callInput.value;
     const callDoc = doc(collection(firestore, 'calls'), callId);
     const answerCandidates = collection(callDoc, 'answerCandidates');
     const offerCandidates = collection(callDoc, 'offerCandidates');
     
-    // Get candidate for answerer, save to db
-    pc.onicecandidate = event => {
-      event.candidate && addDoc(answerCandidates, event.candidate.toJSON());
+    // Collect ICE candidates for the answerer and save them to Firestore
+    peerConnection.onicecandidate = (event) => {
+        if (event.candidate) {
+          console.log("Saving ICE candidate...");
+            addDoc(answerCandidates, event.candidate.toJSON());
+        }
     };
 
-    // Get offer from caller
+    // Get the offer from the caller
     const callData = (await getDoc(callDoc)).data();
-
     const offerDescription = callData.offer;
-    await pc.setRemoteDescription(new RTCSessionDescription(offerDescription));
-    console.log("caller offerDescription:");
-    console.log(offerDescription);
+    console.log("Received connection details (SDP offer) from the caller:", offerDescription);
+    console.log("Setting up the connection...");
+    await peerConnection.setRemoteDescription(new RTCSessionDescription(offerDescription));
 
-    const answerDescription = await pc.createAnswer();
-    await pc.setLocalDescription(answerDescription);
-    console.log("caller answerDescription:");
-    console.log(answerDescription);
+    // Create an SDP answer and set it as the local description
+    const answerDescription = await peerConnection.createAnswer();
+    await peerConnection.setLocalDescription(answerDescription);
+    console.log("Sending your connection details (SDP answer) back to the other person...");
+    
 
+    // Save the answer to Firestore
     const answer = {
         type: answerDescription.type,
         sdp: answerDescription.sdp,
     };
-
     await updateDoc(callDoc, { answer });
+    console.log("Connection details (SDP answer) sent to the caller:", answer);
 
+    // Listen for ICE candidates from the caller
     onSnapshot(offerCandidates, (snapshot) => {
         snapshot.docChanges().forEach((change) => {
-            console.log("change:");
-            console.log(change);
             if (change.type === 'added') {
-                let data = change.doc.data();
-                console.log("data:");
-                console.log(data);
-                pc.addIceCandidate(new RTCIceCandidate(data));
-                console.log("added ice candidate");
+                const candidate = new RTCIceCandidate(change.doc.data());
+                console.log("Adding ICE candidate from the caller.");
+                peerConnection.addIceCandidate(candidate);
             }
         });
     });
 
+    console.log("You are now connected! You can see and hear the other person.");
     hangupButton.disabled = false;
     callButton.disabled = true;
     answerButton.disabled = true;
     webcamButton.disabled = true;
+
+    console.log("Call answered successfully.");
+
+    // Final summary log
+    console.log("Connection successful! The browsers are now communicating using the following details:");
+    console.groupCollapsed("Connection Details");
+    console.log("SDP Offer (Caller):", offerDescription.sdp);
+    console.log("SDP Answer (Receiver):", answerDescription.sdp);
+    console.log("ICE Candidates are being exchanged to establish the best communication path.");
+    console.groupEnd();
+    console.log("Enjoy your call!");
 };
 
 
 // 4. Hang up
-// Close the peer connection and stop the media tracks
 hangupButton.onclick = async () => {
+  console.log("Hanging up the call...");
   // Close the peer connection
-  pc.close();
-  pc = new RTCPeerConnection(servers);
+  peerConnection.close();
+  peerConnection = new RTCPeerConnection(servers);
 
-  // Stop all local media tracks
-  localStream.getTracks().forEach((track) => track.stop());
-  remoteStream.getTracks().forEach((track) => track.stop());
+  // Stop all local and remote media tracks
+  localStream.getTracks().forEach((track) => {
+    console.log(`Stopping local ${track.kind} track:`, track);
+    track.stop();
+  });
+  remoteStream.getTracks().forEach((track) => {
+    console.log(`Stopping remote ${track.kind} track:`, track);
+    track.stop();
+  });
 
   // Reset the video elements
   webcamVideo.srcObject = null;
   remoteVideo.srcObject = null;
 
-  // Disable buttons
+  console.log("Resetting the interface...");
+  // Reset the buttons
   callButton.disabled = true;
   answerButton.disabled = true;
   hangupButton.disabled = true;
@@ -200,11 +265,17 @@ hangupButton.onclick = async () => {
   const callId = callInput.value;
   if (callId) {
       const callDoc = doc(collection(firestore, 'calls'), callId);
-      await callDoc.delete().catch((error) => {
-          console.error("Error deleting call document:", error);
-      });
+      try {
+          console.log("Deleting call document/record from Firestore...");
+          await deleteDoc(callDoc); // Use deleteDoc to delete the Firestore document
+          console.log(`Call document/record with ID ${callId} has been deleted from Firestore.`);
+      } catch (error) {
+        console.error("Error deleting the call record/document:", error);
+      }
   }
 
   // Clear the call input field
   callInput.value = '';
+  console.log("The call has ended. You can start a new call or join another one.");
+  console.log("Call hung up successfully.");
 };

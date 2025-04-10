@@ -5,6 +5,39 @@
 Have a WebRTC example where you can explain the overall parts.
 
 
+## What Does This Application Do?
+
+This application allows you to share video and audio through your computer's webcam and microphone to talk to another person in real-time. It uses WebRTC technology to establish a direct connection between two users, enabling seamless video and audio communication.
+
+---
+
+## How to Use the Application
+
+1. **Go to the Application URL**  
+   Both you and the person you want to call should open the application in your web browsers by visiting the URL where it is hosted.
+
+2. **Start Your Webcam**  
+   - Press the **Start webcam** button.  
+   - Your browser will ask for permission to use your webcam and microphone. Click **Allow** to proceed.  
+   - You should now see your video feed under "Local Stream."
+
+3. **Create a Call (Caller)**  
+   - The person initiating the call (the caller) should press the **Create Call (offer)** button.  
+   - A unique code will appear in the input field under "Join a Call."  
+   - Copy this code and share it with the person you want to call.
+
+4. **Join a Call (Receiver)**  
+   - The person receiving the call (the receiver) should paste the code they received into the input field under "Join a Call."  
+   - Then, press the **Answer** button.  
+   - A video connection will be established, and both parties should now see and hear each other.
+
+5. **End the Call**  
+   - Either party can press the **Hangup** button to end the call.  
+   - After hanging up, you can restart the process to call someone else.
+
+---
+
+This simple process makes it easy to connect and communicate with others using just your browser—no additional software or plugins required!
 
 ---
 
@@ -123,3 +156,5 @@ During the setup:
 - [Vite Documentation](https://vitejs.dev/guide/)
 - [Firebase Documentation](https://firebase.google.com/docs)
 - [WebRTC Overview](https://developer.mozilla.org/en-US/docs/Web/API/WebRTC_API)
+
+
