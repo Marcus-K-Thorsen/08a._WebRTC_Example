@@ -112,7 +112,7 @@ callButton.onclick = async () => {
         type: offerDescription.type,
     };
 
-    // IMPORTANT: 1. When the caller creates an offer and writes it to Firestore:
+    // Save the offer to Firestore
     await setDoc(callDoc, { offer });
     console.log("Connection details (SDP offer) sent to Firestore:", offer);
 
@@ -130,6 +130,8 @@ callButton.onclick = async () => {
           console.log(data.answer.sdp);
           console.groupEnd();
 
+          // IMPORTANT: 1. When the caller receives the answer, they set the remote description with the answer
+          console.log("Setting remote description with the answer...");
           peerConnection.setRemoteDescription(answerDescription);
 
           // Final summary log for the caller
