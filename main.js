@@ -3,7 +3,7 @@ import './style.css';
 import { collection, doc, addDoc, setDoc, getDoc, onSnapshot, updateDoc, deleteDoc } from "firebase/firestore";
 import firestore from './firebase.js';
 
-// TODO: Connection Setup
+// NOTE: Connection Setup
 // STUN server configuration for WebRTC
 const servers = {
     iceServers: [
@@ -38,7 +38,7 @@ const remoteVideo = document.getElementById('remoteVideo');
 const hangupButton = document.getElementById('hangupButton');
 
 
-// TODO: Media Capture
+// NOTE: Media Capture
 // 1. Setup media sources
 webcamButton.onclick = async () => {
     console.log("Setting up media sources...");
@@ -50,14 +50,14 @@ webcamButton.onclick = async () => {
     });
     remoteStream = new MediaStream();
     console.log("Access granted! Preparing your local video and audio streams...");
-    // TODO: Peer-to-Peer - Local Tracks
+    // NOTE: Peer-to-Peer - Local Tracks
     // Add local tracks (video/audio) to the peer connection
     localStream.getTracks().forEach((track) => {
       console.log(`Adding local "${track.kind}" track to the connection:`, track);
       peerConnection.addTrack(track, localStream);
     });
 
-    // TODO: Peer-to-Peer - Remote Tracks
+    // NOTE: Peer-to-Peer - Remote Tracks
     // Handle incoming remote tracks and add them to the remote stream
     peerConnection.ontrack = event => {
       console.log("Receiving video/audio from the other person...");
@@ -81,7 +81,7 @@ webcamButton.onclick = async () => {
 };
 
 
-// TODO: Signaling - Caller
+// NOTE: Signaling - Caller
 // 2. Create an offer
 callButton.onclick = async () => {
     console.log("Creating an offer / a new call...");
@@ -112,6 +112,7 @@ callButton.onclick = async () => {
         type: offerDescription.type,
     };
 
+    // IMPORTANT: 1. When the caller creates an offer and writes it to Firestore:
     await setDoc(callDoc, { offer });
     console.log("Connection details (SDP offer) sent to Firestore:", offer);
 
@@ -164,7 +165,7 @@ callButton.onclick = async () => {
 };
 
 
-// TODO: Signaling - Receiver
+// NOTE: Signaling - Receiver
 // 3. Answer the call with the unique ID
 answerButton.onclick = async () => {
     console.log("Answering/joining the call...");
@@ -187,6 +188,7 @@ answerButton.onclick = async () => {
     const offerDescription = callData.offer;
     console.log("Received connection details (SDP offer) from the caller:", offerDescription);
     console.log("Setting up the connection...");
+    // IMPORTANT: 2. When the receiver answers the call, they set the remote description with the offer
     await peerConnection.setRemoteDescription(new RTCSessionDescription(offerDescription));
 
     // Create an SDP answer and set it as the local description

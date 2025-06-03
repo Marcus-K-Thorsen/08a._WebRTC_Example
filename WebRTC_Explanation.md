@@ -141,7 +141,7 @@ Before any WebRTC connection can be established, the browser must capture the me
 
 - **Relevant Code:**  
   See `main.js`, lines 43–81.  
-  Look for the `TODO: Media Capture` comment.
+  Look for the `NOTE: Media Capture` comment.
 
 ---
 
@@ -163,9 +163,9 @@ Signaling is the process of exchanging metadata and connection information betwe
 
 - **Relevant Code:**  
   - Caller creates an offer: See `main.js`, lines 86–164.  
-    Look for the `TODO: Signaling - Caller` comment.  
+    Look for the `NOTE: Signaling - Caller` comment.  
   - Receiver answers the call: See `main.js`, lines 169–233.  
-    Look for the `TODO: Signaling - Receiver` comment.
+    Look for the `NOTE: Signaling - Receiver` comment.
 
 ---
 
@@ -187,7 +187,7 @@ Once signaling is complete, the peers use the exchanged information to establish
 
 - **Relevant Code:**  
   See `main.js`, lines 8–15.  
-  Look for the `TODO: Connection Setup` comment.
+  Look for the `NOTE: Connection Setup` comment.
 
 ---
 
@@ -205,9 +205,9 @@ Once the connection is established, the peers can exchange data directly without
 
 - **Relevant Code:**  
   - Adding local tracks: See `main.js`, lines 55–58.  
-    Look for the `TODO: Peer-to-Peer - Local Tracks` comment.  
+    Look for the `NOTE: Peer-to-Peer - Local Tracks` comment.  
   - Handling remote tracks: See `main.js`, lines 62–68.  
-    Look for the `TODO: Peer-to-Peer - Remote Tracks` comment.
+    Look for the `NOTE: Peer-to-Peer - Remote Tracks` comment.
 
 ---
 
